@@ -1,0 +1,24 @@
+# Secrets & Environment variables
+.env
+.env.*
+!.env.template
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Temporary attachments or local artifacts
+allegati/
+tmp/
+*.tmp

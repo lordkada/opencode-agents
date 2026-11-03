@@ -1,0 +1,24 @@
+{
+  "skills": [
+    {
+      "name": "setup-workspace-env",
+      "version": "2",
+      "files": ["SKILL.md"]
+    },
+    {
+      "name": "slack-connector",
+      "version": "1",
+      "files": ["SKILL.md"]
+    },
+    {
+      "name": "gmail-imap",
+      "version": "1",
+      "files": ["SKILL.md"]
+    },
+    {
+      "name": "fellow-notes",
+      "version": "1",
+      "files": ["SKILL.md"]
+    }
+  ]
+}

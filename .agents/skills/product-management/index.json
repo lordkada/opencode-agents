@@ -1,0 +1,22 @@
+{
+  "skills": [
+    {
+      "name": "one-pager-writer",
+      "version": "1",
+      "files": [
+        "SKILL.md",
+        "references/framework-library.md",
+        "references/impact-craft.md"
+      ]
+    },
+    {
+      "name": "prd-writer",
+      "version": "1",
+      "files": [
+        "SKILL.md",
+        "references/prd-template.md",
+        "references/quality-bar.md"
+      ]
+    }
+  ]
+}

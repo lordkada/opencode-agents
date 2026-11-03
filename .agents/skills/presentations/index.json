@@ -1,0 +1,13 @@
+{
+  "skills": [
+    {
+      "name": "slide-deck-designer",
+      "version": "1",
+      "files": [
+        "SKILL.md",
+        "references/composition-patterns.md",
+        "references/html-print-template.md"
+      ]
+    }
+  ]
+}
