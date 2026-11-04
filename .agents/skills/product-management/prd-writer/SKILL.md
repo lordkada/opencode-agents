@@ -35,6 +35,10 @@ Read what the user gave you. Then decide whether you have enough to write someth
 
 If the user clearly wants a fast first draft and says "just draft it, I'll fix it", honor that — write the draft and mark every guess as an assumption rather than blocking on questions. Use judgment about how much to ask: a vague one-line request needs questions; a detailed brief needs few or none.
 
+**Gathering context from external URLs or large documentation sets (preventing HTTP 504 timeouts):**
+- When you need to read multiple web pages (`webfetch`) or large documentation trees to gather context for a PRD/BRD, **always use `format: "markdown"`** (never raw `html`, which is ~10x larger).
+- If you need to read more than 4–5 URLs or documents, **delegate the reading and synthesis to a `subagent` (`explore` or `general`)** so that only a structured summary is returned to the main session. Never execute 15–20 `webfetch` calls in the main context in a single turn.
+
 ### Step 2 — Pick the right format
 
 Read `references/prd-template.md` for the full structure and section-by-section guidance. Then choose the depth:
@@ -44,9 +48,12 @@ Read `references/prd-template.md` for the full structure and section-by-section 
 
 The template file describes both. Don't include sections that add no value for the case at hand — an empty "Internationalization" heading is noise. It's better to have six sharp sections than fifteen padded ones.
 
-### Step 3 — Write in Markdown
+### Step 3 — Write in Markdown (Incrementally for Long Docs)
 
-Output the PRD as a Markdown file in `/mnt/user-data/outputs/` (or inline if the user is clearly just iterating in chat on a short piece). Markdown is the requested default. Use headings, tables for requirements and metrics, and checklists where they earn their place. Keep prose tight — engineers and execs skim PRDs.
+Output the PRD as a Markdown file using a **relative path** inside the current working directory (or inline if the user is clearly just iterating in chat on a short piece). Use headings, tables for requirements and metrics, and checklists where they earn their place. Keep prose tight — engineers and execs skim PRDs.
+
+**Incremental writing rule (preventing gateway timeouts):**
+- For a full PRD or BRD (e.g. >1,500–2,000 words), **do not generate the entire document in a single `write` tool call** (especially after loading a large context), as `TTFT + generation time` may exceed the LLM gateway timeout (`HTTP 504`). Instead, create the document structure and first sections with `write`, then populate the remaining detailed sections in 1–2 follow-up `edit` calls.
 
 Write in the language the user is using for the request. If they switch languages or ask explicitly, follow that. When unsure which language they want the *document* in (as opposed to the conversation), ask once.
 

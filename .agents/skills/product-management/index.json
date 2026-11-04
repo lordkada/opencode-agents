@@ -11,7 +11,7 @@
     },
     {
       "name": "prd-writer",
-      "version": "1",
+      "version": "2",
       "files": [
         "SKILL.md",
         "references/prd-template.md",

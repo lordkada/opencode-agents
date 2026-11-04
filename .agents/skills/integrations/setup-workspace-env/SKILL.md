@@ -76,12 +76,18 @@ def load_env():
 
 ## Sequenza di Setup Guidato (Passo-Passo)
 
-### Passo 0: Verifica iniziale dello stato di `.env` (e creazione se assente)
+> 💡 **Tip rapido Copia/Incolla su Mac (Terminale e Obsidian):**
+> Quando esegui OpenCode dentro il container Docker su macOS, la selezione del mouse nella TUI mostra il popup *"Copied to clipboard"* ma non copia realmente negli appunti di sistema del Mac.
+> Ricorda subito all'utente questo trucco semplicissimo (valido sia nel **Terminale Mac** sia dentro **Obsidian**):
+> - Con la finestra del Terminale (o di Obsidian) attiva, premi **`Cmd + R`** *(menu **Vista → Consenti resoconto mouse / Allow Mouse Reporting**)* per disabilitare la cattura del mouse e usare normalmente la selezione nativa e `Cmd + C` / `Cmd + V`;
+> - *In alternativa*, tieni premuto il tasto **`fn`** mentre selezioni il testo col mouse, poi premi `Cmd + C`.
 
-Esegui questo script Python per controllare se esiste già un file `.env` (di progetto o globale) e quali credenziali sono già configurate:
+### Passo 0: Verifica iniziale dello stato di `.env` e di GitHub CLI (`gh`)
+
+Esegui questo script Python per controllare se esiste già un file `.env` (di progetto o globale), quali credenziali sono già configurate e se il client GitHub (`gh`) preinstallato nel container è autenticato correttamente via HTTPS:
 
 ```python
-import os
+import os, subprocess
 
 def find_env_path():
     for candidate in [".env", "/work/.env", os.path.expanduser("~/.config/opencode/.env")]:
@@ -103,12 +109,16 @@ def is_set(key, placeholders):
     val = env.get(key, "")
     return bool(val) and not any(p in val for p in placeholders)
 
+gh_ok = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True).returncode == 0
+
 print("PERCORSO_ENV:", path or "NESSUNO")
 print("TEMPLATE_LOCALE_PRESENTE:", os.path.exists(".env.template"))
+print("GITHUB CLI (gh via HTTPS) autenticato:", gh_ok)
 print("SLACK configurato:", is_set("SLACK_XOXC_TOKEN", ["inserisci-qui"]) and is_set("SLACK_XOXD_COOKIE", ["inserisci-qui"]))
 print("GMAIL configurato:", is_set("GMAIL_USER", ["nome.cognome@"]) and is_set("GMAIL_APP_PASSWORD", ["xxxx"]))
 print("FELLOW configurato:", is_set("FELLOW_SUBDOMAIN", ["inserisci-qui"]) and is_set("FELLOW_API_TOKEN", ["inserisci-qui"]))
 ```
+*(Nota: per verificare o usare GitHub dentro il container usa **sempre** il client `gh` preinstallato con protocollo HTTPS; non usare né installare mai il client `ssh`).*
 
 #### Come comportarsi in base all'esito del Passo 0:
 1. **Se `PERCORSO_ENV` è `NESSUNO`:**
@@ -128,9 +138,9 @@ print("FELLOW configurato:", is_set("FELLOW_SUBDOMAIN", ["inserisci-qui"]) and i
 ### Passo 1/3: Configurazione di Slack (`SLACK_XOXC_TOKEN` e `SLACK_XOXD_COOKIE`)
 
 Spiega all'utente come estrarre i due token di sessione dal browser:
-1. Apri **Slack nel browser** all'indirizzo `https://app.slack.com` (assicurandoti di essere nel tuo workspace di lavoro).
+1. Apri **Slack nel browser** all'indirizzo `https://app.slack.com` (oppure `https://<tuo-workspace>.slack.com/home`, assicurandoti di essere autenticato nel tuo workspace di lavoro).
 2. Apri gli **Strumenti per sviluppatori (DevTools)**:
-   - Su **Mac:** premi `Cmd + Option + I`
+   - Su **Mac:** premi `Cmd + Option + I` (oppure da menu Chrome: *Altri strumenti → Strumenti per sviluppatori*)
    - Su **Windows / Linux:** premi `F12` oppure `Ctrl + Shift + I`
 3. **Per recuperare `SLACK_XOXC_TOKEN` (`xoxc-...`):**
    - Clicca sul tab **Console** dei DevTools.
@@ -138,13 +148,13 @@ Spiega all'utente come estrarre i due token di sessione dal browser:
      ```javascript
      Object.values(JSON.parse(localStorage.localConfig_v2).teams).map(t => ({name: t.name, token: t.token}))
      ```
-     *(Nota: se il browser chiede conferma prima di incollare nella Console, scrivi `allow pasting` e premi Invio, poi incolla di nuovo).*
+     *(Nota importante: se Chrome mostra l'avviso giallo `Warning: Don't paste code into the DevTools Console...`, scrivi `allow pasting` nella Console e premi Invio, poi incolla di nuovo il comando sopra).*
    - Copia il valore `token` associato al tuo workspace (inizia con `xoxc-...`).
 4. **Per recuperare `SLACK_XOXD_COOKIE` (`xoxd-...`):**
-   - Sempre nei DevTools, clicca sul tab **Application** (in alto; se non lo vedi clicca su `>>`).
-   - Nel menu a sinistra espandi **Cookies** e seleziona `https://app.slack.com`.
+   - Sempre nei DevTools, clicca sul tab **Application** (o **Applicazione** in alto; se non lo vedi clicca su `>>`).
+   - Nel menu a sinistra espandi **Cookies** e seleziona `https://app.slack.com` (o l'URL `https://<tuo-workspace>.slack.com`).
    - Nella tabella cerca la riga con **Name** uguale a **`d`**.
-   - Fai doppio clic sul suo **Value** (inizia con `xoxd-...`) e copialo.
+   - Fai doppio clic sul suo **Value** (una stringa lunga che inizia con `xoxd-...`) e copialo.
 
 Appena l'utente fornisce i valori o conferma di averli salvati in `.env`, esegui subito il **test di verifica Slack**:
 ```python
