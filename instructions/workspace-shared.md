@@ -1,10 +1,10 @@
 # Regole e Convenzioni Condivise del Workspace
 
-Queste istruzioni definiscono il comportamento standard per gli agenti OpenCode che operano sui progetti utilizzando le skill di questo repository (`setup-workspace-env`, `slack-connector`, `gmail-imap`, `fellow-notes`).
+Queste istruzioni definiscono il comportamento standard per gli agenti OpenCode che operano sui progetti utilizzando le skill di questo repository (`setup-workspace-env`, `slack-connector`, `gmail-imap`, `fellow-notes`, `atlassian-mcp`).
 
 ## 1. Sicurezza e Credenziali (`.env`)
 - Tutte le credenziali risiedono nel file `.env` (nella root del progetto corrente oppure centralizzato in `~/.config/opencode/.env`).
-- **Non stampare mai in chiaro** nei messaggi o nei log i valori di `SLACK_XOXC_TOKEN`, `SLACK_XOXD_COOKIE`, `GMAIL_APP_PASSWORD` o `FELLOW_API_TOKEN`.
+- **Non stampare mai in chiaro** nei messaggi o nei log i valori di `SLACK_XOXC_TOKEN`, `SLACK_XOXD_COOKIE`, `GMAIL_APP_PASSWORD`, `FELLOW_API_TOKEN`, `ATLASSIAN_API_TOKEN`, `ATLASSIAN_MCP_BASIC_AUTH` o `ATLASSIAN_MCP_BEARER_TOKEN`.
 - Non committare mai file `.env` su Git.
 - Se `.env` manca o un'API restituisce errore di autenticazione (`invalid_auth`, login IMAP fallito, `401 Unauthorized`), carica e segui immediatamente la skill `setup-workspace-env`.
 
@@ -18,6 +18,9 @@ Queste istruzioni definiscono il comportamento standard per gli agenti OpenCode 
 - **Fellow (`fellow-notes`)**:
   - La ricerca e lettura di note, agende e action item è sempre consentita.
   - Chiedi conferma esplicita prima di sovrascrivere un'intera agenda o archiviare/completare action item, salvo istruzione diretta dell'utente.
+- **Atlassian MCP (`atlassian-mcp` — `https://mcp.atlassian.com/v2/mcp`)**:
+  - La ricerca e la lettura di issue Jira, pagine Confluence, repository/PR Bitbucket, video Loom e Teamwork Graph sono sempre consentite.
+  - **Conferma obbligatoria per scrittura e modifiche**: chiedi sempre conferma esplicita all'utente (mostrando progetto/space, chiave/titolo e dettagli) prima di creare, modificare, transizionare, commentare o eliminare work item Jira, pagine Confluence o PR Bitbucket (`create*`, `edit*`, `update*`, `transition*`, `executeWrite`, `executeDestructive`), salvo istruzione diretta dell'utente.
 
 ## 3. Gestione Allegati e Documenti
 - Salva gli allegati scaricati da Slack o Gmail nella cartella di progetto `allegati/` (se previsto dal progetto) usando la convenzione:

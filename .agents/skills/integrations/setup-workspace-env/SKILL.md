@@ -1,21 +1,21 @@
 ---
 name: Setup Credenziali Workspace (.env)
-description: Guida interattiva passo-passo per creare, configurare e testare il file .env con le credenziali del workspace (Slack session token, Gmail App Password IMAP, Fellow API Key). Usa questa skill al primo avvio o quando un'integrazione restituisce errori di autenticazione.
+description: Guida interattiva passo-passo per creare, configurare e testare il file .env con le credenziali del workspace (Slack session token, Gmail App Password IMAP, Fellow API Key) e configurare il server MCP di Atlassian. Usa questa skill al primo avvio o quando un'integrazione restituisce errori di autenticazione.
 ---
 
-# Skill: Setup Guidato Credenziali Workspace (`.env`)
+# Skill: Setup Guidato Credenziali Workspace (`.env`) e Server MCP Atlassian
 
-Procedura standard riutilizzabile in qualsiasi progetto OpenCode (sia in esecuzione nativa, sia in esecuzione containerizzata Docker / Rancher Desktop) per accompagnare l'utente nella configurazione iniziale o nel rinnovo delle credenziali **Slack**, **Gmail** e **Fellow**.
+Procedura standard riutilizzabile in qualsiasi progetto OpenCode (sia in esecuzione nativa, sia in esecuzione containerizzata Docker / Rancher Desktop) per accompagnare l'utente nella configurazione iniziale o nel rinnovo delle credenziali **Slack**, **Gmail**, **Fellow** e del server **Atlassian MCP** (`https://mcp.atlassian.com/v2/mcp`).
 
 ## Quando usare questa skill
-1. L'utente chiede di fare il **setup iniziale**, **configurare il progetto**, **configurare `.env`** o **aggiornare i token** (o esegue `/setup-env`).
+1. L'utente chiede di fare il **setup iniziale**, **configurare il progetto**, **configurare `.env`**, **configurare Atlassian MCP** o **aggiornare i token** (o esegue `/setup-env`).
 2. Il file `.env` non esiste né nella cartella di progetto (`./.env`) né a livello globale (`~/.config/opencode/.env`).
-3. Una delle integrazioni (`slack-connector`, `gmail-imap`, `fellow-notes`) fallisce l'autenticazione perché un valore in `.env` è un placeholder (`inserisci-qui...`, `nome.cognome@example.com`, `xxxx...`) oppure è scaduto (`invalid_auth`).
+3. Una delle integrazioni (`slack-connector`, `gmail-imap`, `fellow-notes`, `atlassian-mcp`) fallisce l'autenticazione perché un valore in `.env` è un placeholder (`inserisci-qui...`, `nome.cognome@example.com`, `xxxx...`), è scaduto (`invalid_auth`), oppure il server MCP Atlassian richiede autenticazione.
 
 ## Regole di sicurezza
 - **Non stampare mai in chiaro** token o password già presenti in `.env`.
 - Se il file `.env` viene salvato nella cartella del progetto (`./.env`), verifica sempre che `.gitignore` contenga `.env` così che nessun secret possa essere committato per errore su Git.
-- Procedi **un passo alla volta** (verifica stato e scelta percorso → Slack → Gmail → Fellow), attendendo la risposta dell'utente tra un passo e l'altro e testando subito ogni integrazione appena configurata.
+- Procedi **un passo alla volta** (verifica stato e scelta percorso → Slack → Gmail → Fellow → Atlassian MCP), attendendo la risposta dell'utente tra un passo e l'altro e testando subito ogni integrazione appena configurata.
 
 ---
 
@@ -51,6 +51,11 @@ GMAIL_APP_PASSWORD="xxxx xxxx xxxx xxxx"
 # 3. Fellow (Meeting Notes & Action Items) - usati dalla skill `fellow-notes`
 FELLOW_SUBDOMAIN="inserisci-qui-il-sottodominio"
 FELLOW_API_TOKEN="inserisci-qui-il-tuo-token-fellow"
+
+# 4. Atlassian MCP Server (https://mcp.atlassian.com/v2/mcp) - OPZIONALE
+# Di default usa OAuth 2.1 tramite `/mcps` in OpenCode senza variabili .env.
+# Imposta solo se usi autenticazione via Personal API Token (Basic base64 email:token) con `"oauth": false`:
+ATLASSIAN_MCP_BASIC_AUTH="inserisci-qui-base64-email-e-token"
 """
 
 def find_env_path():
@@ -270,3 +275,30 @@ with urllib.request.urlopen(req) as resp:
     data = json.loads(resp.read().decode())
     print("Fellow API OK | Risposta ricevuta:", "notes" in data)
 ```
+
+---
+
+### Passo 4/4: Configurazione del Server MCP di Atlassian (`https://mcp.atlassian.com/v2/mcp`)
+
+Spiega all'utente che il server MCP remoto ufficiale di Atlassian v2 ([guida ufficiale](https://support.atlassian.com/atlassian-ai-gateway/docs/get-started-with-the-atlassian-remote-mcp-server/)) consente a OpenCode di interagire con Jira, Confluence, Jira Service Management, Bitbucket, Loom e Teamwork Graph:
+
+1. **Aggiunta del server MCP in OpenCode (`opencode.jsonc` o globale):**
+   - Esegui:
+     ```bash
+     opencode mcp add atlassian --global --url https://mcp.atlassian.com/v2/mcp
+     opencode mcp list
+     ```
+   - Oppure verifica che in `opencode.jsonc` (di progetto o globale in `~/.config/opencode/opencode.jsonc`) sia presente il blocco:
+     ```jsonc
+     "mcp": {
+       "servers": {
+         "atlassian": {
+           "type": "remote",
+           "url": "https://mcp.atlassian.com/v2/mcp"
+         }
+       }
+     }
+     ```
+2. **Autenticazione:**
+   - **Modalità consigliata (OAuth 2.1 interattivo):** invita l'utente ad aprire **`/mcps`** nella TUI di OpenCode, selezionare **`atlassian`** e completare l'accesso nel browser *(non lanciare `opencode mcp auth` dal tool `shell` in background)*.
+   - **Modalità alternativa (Personal API Token / Basic Auth, utile in container Docker o ambienti headless):** se il redirect OAuth non è raggiungibile dal container e l'organizzazione ha abilitato i token API su Atlassian MCP, guida l'utente a generare un token su `https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&expiryDays=max&appId=mcp-v2&selectedScopes=all`, calcolare il Base64 di `email:api_token`, salvarlo in `ATLASSIAN_MCP_BASIC_AUTH` nel file `.env` e impostare `"oauth": false` e `"headers": { "Authorization": "Basic {env:ATLASSIAN_MCP_BASIC_AUTH}" }` nella configurazione del server `atlassian`.

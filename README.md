@@ -12,12 +12,13 @@ Le skill sono organizzate per **tipologia** (`integrations`, `product-management
 .
 ├── .agents/
 │   └── skills/
-│       ├── integrations/                      # Connettori verso tool di collaborazione (Slack, Gmail, Fellow)
+│       ├── integrations/                      # Connettori verso tool di collaborazione (Slack, Gmail, Fellow, Atlassian MCP)
 │       │   ├── index.json                     # Catalogo HTTP per la categoria integrations
-│       │   ├── setup-workspace-env/SKILL.md   # Guida interattiva per creare e testare il file .env
+│       │   ├── setup-workspace-env/SKILL.md   # Guida interattiva per creare e testare il file .env e Atlassian MCP
 │       │   ├── slack-connector/SKILL.md       # Connettore Slack Web API (lettura, thread, file, invio)
 │       │   ├── gmail-imap/SKILL.md            # Connettore Gmail IMAP sola lettura (X-GM-RAW) + allegati
-│       │   └── fellow-notes/SKILL.md          # Connettore Fellow API v1 (note, agende, action items)
+│       │   ├── fellow-notes/SKILL.md          # Connettore Fellow API v1 (note, agende, action items)
+│       │   └── atlassian-mcp/SKILL.md         # Server MCP Atlassian v2 (Jira, Confluence, JSM, Bitbucket, Loom, Rovo)
 │       ├── product-management/                # Skill per Product Management
 │       │   ├── index.json                     # Catalogo HTTP per la categoria product-management
 │       │   ├── one-pager-writer/              # Scrittura e pressure-test di One-Pager / Executive Brief
@@ -53,10 +54,11 @@ Le skill sono organizzate per **tipologia** (`integrations`, `product-management
 #### 🔌 `integrations` (Connettori Workspace)
 | ID Skill | Nome | Descrizione |
 | :--- | :--- | :--- |
-| `setup-workspace-env` | **Setup Credenziali Workspace (`.env`)** | Procedura guidata passo-passo per creare, configurare e testare `.env` con i token di Slack, Gmail e Fellow. |
+| `setup-workspace-env` | **Setup Credenziali Workspace (`.env`)** | Procedura guidata passo-passo per creare, configurare e testare `.env` con i token di Slack, Gmail, Fellow e configurare il server MCP Atlassian. |
 | `slack-connector` | **Connettore Slack** | Legge canali, DM, MPIM, thread, scarica allegati e invia messaggi/reaction su Slack tramite session token (`xoxc` / `xoxd`). |
 | `gmail-imap` | **Connettore Gmail IMAP** | Cerca e legge email Google Workspace in sola lettura tramite query native `X-GM-RAW` e scarica allegati. |
 | `fellow-notes` | **Connettore Fellow API** | Legge e aggiorna note dei meeting, talking points (agenda) e action items su `*.fellow.app`. |
+| `atlassian-mcp` | **Connettore Atlassian MCP** | Configura e utilizza il server MCP remoto ufficiale di Atlassian v2 (`https://mcp.atlassian.com/v2/mcp`) per Jira, Confluence, Jira Service Management, Bitbucket, Loom e Teamwork Graph / Rovo. |
 
 #### 📋 `product-management` (Product Management)
 | ID Skill | Nome | Descrizione |
@@ -104,6 +106,45 @@ chmod 600 ~/.config/opencode/.env
 
 ---
 
+## 🔷 Configurazione Server MCP di Atlassian (`https://mcp.atlassian.com/v2/mcp`)
+
+Questo repository include il supporto per il **server MCP remoto ufficiale di Atlassian (v2)** secondo la [guida ufficiale di setup Atlassian](https://support.atlassian.com/atlassian-ai-gateway/docs/get-started-with-the-atlassian-remote-mcp-server/), permettendo agli agenti OpenCode di operare su **Jira**, **Confluence**, **Jira Service Management (JSM)**, **Bitbucket Cloud**, **Loom**, **Goals/Projects** e **Teamwork Graph / Rovo**.
+
+### 1. Aggiunta del server MCP in OpenCode
+Puoi registrare il server MCP di Atlassian tramite CLI OpenCode:
+```bash
+# Globale per tutti i progetti:
+opencode mcp add atlassian --global --url https://mcp.atlassian.com/v2/mcp
+
+# Verifica stato della connessione:
+opencode mcp list
+```
+Oppure dichiararlo direttamente in `opencode.jsonc` sotto `mcp.servers`:
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "atlassian": {
+        "type": "remote",
+        "url": "https://mcp.atlassian.com/v2/mcp"
+      }
+    }
+  }
+}
+```
+
+### 2. Autenticazione
+- **OAuth 2.1 (Predefinita e Consigliata):**
+  Con `"type": "remote"`, OpenCode utilizza automaticamente OAuth 2.1 con PKCE. Apri OpenCode, digita **`/mcps`**, seleziona **`atlassian`** e completa il consenso nel browser.
+- **API Token (Alternativa per Container Docker / Ambienti Headless):**
+  Se il redirect OAuth non è raggiungibile dall'ambiente di esecuzione e la tua organizzazione ha abilitato i token API per Atlassian MCP ([guida ufficiale API Token](https://support.atlassian.com/atlassian-ai-gateway/docs/configure-authentication-via-api-token/)):
+  1. Crea un Personal API Token su `https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&expiryDays=max&appId=mcp-v2&selectedScopes=all`
+  2. Codifica `<email>:<api_token>` in Base64 (`echo -n "nome.cognome@example.com:TOKEN" | base64`) e salvalo in `ATLASSIAN_MCP_BASIC_AUTH` dentro `.env`.
+  3. In `opencode.jsonc` imposta `"oauth": false` e l'header `"Authorization": "Basic {env:ATLASSIAN_MCP_BASIC_AUTH}"` (consulta `.agents/skills/integrations/atlassian-mcp/SKILL.md` per tutti i dettagli).
+
+---
+
 ## 🚀 Come includere questo repository nei tuoi progetti OpenCode
 
 OpenCode V2 supporta nativamente il caricamento di **skill** e **istruzioni** direttamente da **URL HTTPS remoti**, senza bisogno di clonare questo repository in locale.
@@ -132,10 +173,18 @@ Ogni categoria sotto `.agents/skills/<categoria>/` possiede il proprio file `ind
   "instructions": [
     "https://raw.githubusercontent.com/lordkada/opencode-agents/main/instructions/workspace-shared.md"
   ],
+  "mcp": {
+    "servers": {
+      "atlassian": {
+        "type": "remote",
+        "url": "https://mcp.atlassian.com/v2/mcp"
+      }
+    }
+  },
   "command": {
     "setup-env": {
-      "description": "Configura e testa il file .env del workspace (Slack, Gmail, Fellow)",
-      "template": "Carica e segui la skill setup-workspace-env per creare, configurare e testare passo-passo il file .env con le credenziali."
+      "description": "Configura e testa il file .env del workspace (Slack, Gmail, Fellow) e il server MCP Atlassian",
+      "template": "Carica e segui la skill setup-workspace-env per creare, configurare e testare passo-passo il file .env con le credenziali e il server MCP Atlassian."
     }
   }
 }
@@ -238,6 +287,11 @@ Breve descrizione del progetto, degli stakeholder e degli obiettivi.
 
 ## Riferimenti Fellow (per la skill `fellow-notes`)
 - Serie meeting settimanale SAL: Note ID `xxxxx` / partecipanti `collega@example.com`
+
+## Riferimenti Atlassian (per la skill `atlassian-mcp`)
+- Sito Atlassian Cloud: `https://esempio.atlassian.net`
+- Progetto Jira: chiave `PROJ` (Board ID `123`)
+- Space Confluence di progetto: chiave `DOC`
 ```
 
 ---
