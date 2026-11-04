@@ -109,29 +109,38 @@ chmod 600 ~/.config/opencode/.env
 OpenCode V2 supporta nativamente il caricamento di **skill** e **istruzioni** direttamente da **URL HTTPS remoti**, senza bisogno di clonare questo repository in locale.
 
 Puoi inserire la configurazione:
-- **Una sola volta a livello globale** in `~/.config/opencode/opencode.jsonc` (così tutti i tuoi progetti avranno automaticamente le skill).
-- **Nel singolo progetto** in `opencode.jsonc` (o `.opencode/opencode.jsonc`), scegliendo anche solo le categorie di skill che ti interessano in quel progetto.
+- **Una sola volta a livello globale** (così tutti i tuoi progetti avranno automaticamente le skill):
+  - **Se usi OpenCode nativo sull'host:** in `~/.config/opencode/opencode.jsonc`
+  - **Se usi OpenCode in Container Docker (`opencode-as-a-container`):** dentro il container il percorso è `/home/opencode/.config/opencode/opencode.jsonc`, che **sul tuo Mac corrisponde al file `~/.local/share/opencode-container/opencode-data/.config/opencode/opencode.jsonc`** *(puoi anche configurarlo o modificarlo in modo guidato lanciando sul Mac il comando `opencode --container-skills`)*.
+- **Nel singolo progetto** in `opencode.jsonc` (o `.opencode/opencode.jsonc` nella root del progetto, visibile identicamente sia sul Mac sia dentro il container grazie al mount `-v "$PWD":"$PWD"`), scegliendo anche solo le categorie di skill che ti interessano in quel progetto.
 
 ---
 
 ### ⭐ Modalità 1 (Consigliata): Uso 100% Remoto da GitHub Pubblico (Zero Clone)
 
-Ogni categoria sotto `.agents/skills/<categoria>/` possiede il proprio file `index.json`. In questo modo puoi includere tutte le categorie oppure soltanto quelle rilevanti per lo specifico progetto:
+Ogni categoria sotto `.agents/skills/<categoria>/` possiede il proprio file `index.json`. In questo modo puoi includere tutte le categorie oppure soltanto quelle rilevanti per lo specifico progetto (o aggiungerle al tuo `opencode.jsonc` globale):
 
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
   "skills": [
-    // Includi le categorie di skill che ti servono in questo progetto:
+    // Includi le categorie di skill che ti servono:
     "https://raw.githubusercontent.com/lordkada/opencode-agents/main/.agents/skills/integrations/",
     "https://raw.githubusercontent.com/lordkada/opencode-agents/main/.agents/skills/product-management/",
     "https://raw.githubusercontent.com/lordkada/opencode-agents/main/.agents/skills/presentations/"
   ],
   "instructions": [
     "https://raw.githubusercontent.com/lordkada/opencode-agents/main/instructions/workspace-shared.md"
-  ]
+  ],
+  "command": {
+    "setup-env": {
+      "description": "Configura e testa il file .env del workspace (Slack, Gmail, Fellow)",
+      "template": "Carica e segui la skill setup-workspace-env per creare, configurare e testare passo-passo il file .env con le credenziali."
+    }
+  }
 }
 ```
+*(Nota: se stai modificando il file globale generato da `opencode-as-a-container` in `~/.local/share/opencode-container/opencode-data/.config/opencode/opencode.jsonc`, aggiungi i blocchi `"skills"`, `"instructions"` e `"command"` mantenendo intatta la sezione `"provider"` esistente — oppure esegui direttamente `opencode --container-skills` dal Terminale del Mac).*
 
 #### Come funziona dietro le quinte:
 1. All'avvio, OpenCode legge l'`index.json` di ciascuna categoria configurata.
@@ -155,10 +164,17 @@ Ogni categoria sotto `.agents/skills/<categoria>/` possiede il proprio file `ind
 
 Se preferisci avere il repository clonato in locale:
 
-1. Clona il repository dentro `~/.config/opencode/opencode-agents` (cartella condivisa e visibile anche dentro eventuale container Docker di OpenCode):
+1. Clona il repository nella directory di configurazione di OpenCode:
    ```bash
-   git clone git@github.com:lordkada/opencode-agents.git ~/.config/opencode/opencode-agents
+   # Opzione A: se usi OpenCode in Container Docker (opencode-as-a-container sul Mac)
+   git clone https://github.com/lordkada/opencode-agents.git \
+     ~/.local/share/opencode-container/opencode-data/.config/opencode/opencode-agents
+
+   # Opzione B: se usi OpenCode installato nativamente sull'host
+   git clone https://github.com/lordkada/opencode-agents.git \
+     ~/.config/opencode/opencode-agents
    ```
+   *(In entrambi i casi, dall'interno di OpenCode il percorso visto dall'agente sarà `~/.config/opencode/opencode-agents`).*
 2. Configura `opencode.jsonc` (in locale OpenCode esplora ricorsivamente le sottocartelle fino a 6 livelli, quindi puoi puntare direttamente a `.agents/skills` per caricare tutte le categorie, oppure a `.agents/skills/<categoria>` per caricarne solo alcune):
    ```jsonc
    {
