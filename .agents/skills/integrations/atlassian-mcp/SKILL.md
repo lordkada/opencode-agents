@@ -27,7 +27,7 @@ opencode mcp list
 *(Ometti `--global` se vuoi salvarlo solo nel file `opencode.jsonc` del progetto corrente).*
 
 ### Configurazione dichiarativa in `opencode.jsonc`
-In OpenCode V2 i server MCP si configurano sotto `mcp.servers` (nel file di progetto `opencode.jsonc` oppure in quello globale `~/.config/opencode/opencode.jsonc`):
+In OpenCode V2 i server MCP si configurano sotto `mcp.servers` (nel file di progetto `opencode.jsonc` oppure in quello globale `~/.config/opencode/opencode.jsonc`, che in `opencode-as-a-container` è mappato sul Mac in `~/.local/share/opencode-container/opencode-data/.config/opencode/opencode.jsonc`):
 
 ```jsonc
 {
@@ -52,8 +52,11 @@ In OpenCode V2 i server MCP si configurano sotto `mcp.servers` (nel file di prog
 ### Opzione A: OAuth 2.1 (Predefinita e Consigliata)
 OpenCode abilita automaticamente **OAuth 2.1 con PKCE** per i server `"type": "remote"`.
 1. Una volta configurato il server `atlassian`, se `opencode mcp list` riporta `needs authentication`, chiedi all'utente di eseguire **`/mcps`** nell'interfaccia di OpenCode, selezionare **`atlassian`** e completare il login e il consenso nel browser.
-2. **Importante per l'agente:** non eseguire mai `opencode mcp auth atlassian` tramite il tool `shell` in background, poiché avvia un flusso interattivo il cui link di autorizzazione resterebbe nascosto; invita sempre l'utente a usare `/mcps` nella TUI.
-3. Le credenziali OAuth sono salvate da OpenCode esternamente ai file di configurazione del progetto e rispettano i permessi utente e il `cloudId` autorizzato.
+2. **Come completare OAuth 2.1 dentro il Container Docker (`opencode-as-a-container`):**
+   - Quando OpenCode gira in un container isolato, il browser sul Mac dell'utente al termine del consenso Atlassian viene reindirizzato a un URL locale del tipo `http://127.0.0.1:<porta>/callback?code=...&state=...` e mostra *"Impossibile raggiungere il sito"*.
+   - **Soluzione immediata:** OpenCode V2 supporta l'inserimento manuale dell'URL di callback! Chiedi all'utente di **copiare l'intero URL `http://127.0.0.1:...` dalla barra degli indirizzi del browser** e **incollarlo direttamente nella finestra `/mcps` di OpenCode** per completare l'autenticazione OAuth senza bisogno di esporre porte dal container.
+3. **Importante per l'agente:** non eseguire mai `opencode mcp auth atlassian` tramite il tool `shell` in background, poiché avvia un flusso interattivo il cui link di autorizzazione resterebbe nascosto; invita sempre l'utente a usare `/mcps` nella TUI.
+4. Le credenziali OAuth sono salvate da OpenCode esternamente ai file di configurazione del progetto e rispettano i permessi utente e il `cloudId` autorizzato.
 
 ### Opzione B: Autenticazione tramite API Token (Alternativa per Container Docker / Ambienti Headless)
 Se il browser locale non può completare il redirect OAuth verso l'ambiente di esecuzione (es. container Docker isolato senza porte di callback esposte) e l'amministratore dell'organizzazione Atlassian ha abilitato l'autenticazione via API Token:

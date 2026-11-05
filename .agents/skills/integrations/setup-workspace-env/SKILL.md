@@ -87,9 +87,9 @@ def load_env():
 > - Con la finestra del Terminale (o di Obsidian) attiva, premi **`Cmd + R`** *(menu **Vista → Consenti resoconto mouse / Allow Mouse Reporting**)* per disabilitare la cattura del mouse e usare normalmente la selezione nativa e `Cmd + C` / `Cmd + V`;
 > - *In alternativa*, tieni premuto il tasto **`fn`** mentre selezioni il testo col mouse, poi premi `Cmd + C`.
 
-### Passo 0: Verifica iniziale dello stato di `.env` e di GitHub CLI (`gh`)
+### Passo 0: Verifica iniziale dello stato di `.env`, di GitHub CLI (`gh`) e di Atlassian MCP
 
-Esegui questo script Python per controllare se esiste già un file `.env` (di progetto o globale), quali credenziali sono già configurate e se il client GitHub (`gh`) preinstallato nel container è autenticato correttamente via HTTPS:
+Esegui questo script Python per controllare se esiste già un file `.env` (di progetto o globale), quali credenziali sono già configurate, se il client GitHub (`gh`) preinstallato nel container è autenticato correttamente via HTTPS e se il server MCP di Atlassian è già configurato in `opencode.jsonc`:
 
 ```python
 import os, subprocess
@@ -116,12 +116,22 @@ def is_set(key, placeholders):
 
 gh_ok = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True).returncode == 0
 
+atlassian_mcp_cfg = False
+for cfg_path in ["opencode.jsonc", ".opencode/opencode.jsonc", os.path.expanduser("~/.config/opencode/opencode.jsonc")]:
+    if os.path.exists(cfg_path):
+        with open(cfg_path) as cf:
+            content = cf.read()
+            if "mcp.atlassian.com" in content or '"atlassian"' in content:
+                atlassian_mcp_cfg = True
+                break
+
 print("PERCORSO_ENV:", path or "NESSUNO")
 print("TEMPLATE_LOCALE_PRESENTE:", os.path.exists(".env.template"))
 print("GITHUB CLI (gh via HTTPS) autenticato:", gh_ok)
 print("SLACK configurato:", is_set("SLACK_XOXC_TOKEN", ["inserisci-qui"]) and is_set("SLACK_XOXD_COOKIE", ["inserisci-qui"]))
 print("GMAIL configurato:", is_set("GMAIL_USER", ["nome.cognome@"]) and is_set("GMAIL_APP_PASSWORD", ["xxxx"]))
 print("FELLOW configurato:", is_set("FELLOW_SUBDOMAIN", ["inserisci-qui"]) and is_set("FELLOW_API_TOKEN", ["inserisci-qui"]))
+print("ATLASSIAN MCP in opencode.jsonc:", atlassian_mcp_cfg, "| Basic Auth in .env:", is_set("ATLASSIAN_MCP_BASIC_AUTH", ["inserisci-qui"]))
 ```
 *(Nota: per verificare o usare GitHub dentro il container usa **sempre** il client `gh` preinstallato con protocollo HTTPS; non usare né installare mai il client `ssh`).*
 
@@ -134,13 +144,13 @@ print("FELLOW configurato:", is_set("FELLOW_SUBDOMAIN", ["inserisci-qui"]) and i
      - se esiste `.env.template` nella cartella corrente, copialo;
      - se `.env.template` **non** esiste in locale (es. progetto configurato in modalità 100% remota), scrivi nel file il contenuto di `DEFAULT_ENV_TEMPLATE` e imposta `chmod 600`.
      - se salvi in `./.env` e nella cartella esiste un `.gitignore` che non cita `.env`, aggiungi `.env` a `.gitignore`.
-2. **Mostra il riepilogo dello stato** (✅ Configurato / ❌ Da configurare per Slack, Gmail e Fellow) e offri sempre all'utente **due modalità** per inserire i valori mancanti:
-   - **Modalità A (assistita in chat — consigliata specialmente col container):** l'utente incolla i valori direttamente nella chat di OpenCode e l'agente aggiorna il file `.env` per lui nel percorso corretto.
+2. **Mostra il riepilogo dello stato** (✅ Configurato / ❌ Da configurare per Slack, Gmail, Fellow e Atlassian MCP) e offri sempre all'utente **due modalità** per inserire i valori mancanti:
+   - **Modalità A (assistita in chat — consigliata specialmente col container):** l'utente incolla i valori direttamente nella chat di OpenCode e l'agente aggiorna il file `.env` (e `opencode.jsonc`) per lui nel percorso corretto.
    - **Modalità B (in editor sul Mac):** l'utente apre il file `.env` (nella cartella del progetto) con un editor di testo, incolla i valori, salva e scrive *"fatto"* in chat.
 
 ---
 
-### Passo 1/3: Configurazione di Slack (`SLACK_XOXC_TOKEN` e `SLACK_XOXD_COOKIE`)
+### Passo 1/4: Configurazione di Slack (`SLACK_XOXC_TOKEN` e `SLACK_XOXD_COOKIE`)
 
 Spiega all'utente come estrarre i due token di sessione dal browser:
 1. Apri **Slack nel browser** all'indirizzo `https://app.slack.com` (oppure `https://<tuo-workspace>.slack.com/home`, assicurandoti di essere autenticato nel tuo workspace di lavoro).
@@ -196,7 +206,7 @@ with urllib.request.urlopen(req) as resp:
 
 ---
 
-### Passo 2/3: Configurazione di Gmail (`GMAIL_USER` e `GMAIL_APP_PASSWORD`)
+### Passo 2/4: Configurazione di Gmail (`GMAIL_USER` e `GMAIL_APP_PASSWORD`)
 
 Spiega all'utente come generare una **Password per le app** di Google Workspace:
 1. `GMAIL_USER`: il tuo indirizzo email Google Workspace (es. `nome.cognome@example.com`).
@@ -233,7 +243,7 @@ M.logout()
 
 ---
 
-### Passo 3/3: Configurazione di Fellow (`FELLOW_SUBDOMAIN` e `FELLOW_API_TOKEN`)
+### Passo 3/4: Configurazione di Fellow (`FELLOW_SUBDOMAIN` e `FELLOW_API_TOKEN`)
 
 Spiega all'utente come generare il token API di Fellow (opzionale se il progetto non usa Fellow):
 1. Apri il tuo workspace Fellow nel browser (`https://<tuo-sottodominio>.fellow.app`).
@@ -280,15 +290,15 @@ with urllib.request.urlopen(req) as resp:
 
 ### Passo 4/4: Configurazione del Server MCP di Atlassian (`https://mcp.atlassian.com/v2/mcp`)
 
-Spiega all'utente che il server MCP remoto ufficiale di Atlassian v2 ([guida ufficiale](https://support.atlassian.com/atlassian-ai-gateway/docs/get-started-with-the-atlassian-remote-mcp-server/)) consente a OpenCode di interagire con Jira, Confluence, Jira Service Management, Bitbucket, Loom e Teamwork Graph:
+Spiega all'utente che il server MCP remoto ufficiale di Atlassian v2 ([guida ufficiale](https://support.atlassian.com/atlassian-ai-gateway/docs/get-started-with-the-atlassian-remote-mcp-server/)) consente a OpenCode di interagire con Jira, Confluence, Jira Service Management, Bitbucket, Loom e Teamwork Graph (opzionale se il progetto non usa prodotti Atlassian):
 
 1. **Aggiunta del server MCP in OpenCode (`opencode.jsonc` o globale):**
-   - Esegui:
+   - Esegui (oppure aggiorna direttamente `opencode.jsonc` di progetto o globale in `~/.config/opencode/opencode.jsonc`):
      ```bash
      opencode mcp add atlassian --global --url https://mcp.atlassian.com/v2/mcp
      opencode mcp list
      ```
-   - Oppure verifica che in `opencode.jsonc` (di progetto o globale in `~/.config/opencode/opencode.jsonc`) sia presente il blocco:
+   - Il blocco aggiunto in `opencode.jsonc` (di progetto o globale in `~/.config/opencode/opencode.jsonc`, che nel container corrisponde sul Mac a `~/.local/share/opencode-container/opencode-data/.config/opencode/opencode.jsonc`) è:
      ```jsonc
      "mcp": {
        "servers": {
@@ -300,5 +310,8 @@ Spiega all'utente che il server MCP remoto ufficiale di Atlassian v2 ([guida uff
      }
      ```
 2. **Autenticazione:**
-   - **Modalità consigliata (OAuth 2.1 interattivo):** invita l'utente ad aprire **`/mcps`** nella TUI di OpenCode, selezionare **`atlassian`** e completare l'accesso nel browser *(non lanciare `opencode mcp auth` dal tool `shell` in background)*.
-   - **Modalità alternativa (Personal API Token / Basic Auth, utile in container Docker o ambienti headless):** se il redirect OAuth non è raggiungibile dal container e l'organizzazione ha abilitato i token API su Atlassian MCP, guida l'utente a generare un token su `https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&expiryDays=max&appId=mcp-v2&selectedScopes=all`, calcolare il Base64 di `email:api_token`, salvarlo in `ATLASSIAN_MCP_BASIC_AUTH` nel file `.env` e impostare `"oauth": false` e `"headers": { "Authorization": "Basic {env:ATLASSIAN_MCP_BASIC_AUTH}" }` nella configurazione del server `atlassian`.
+   - **Modalità A — OAuth 2.1 interattivo (Consigliata):**
+     - Invita l'utente ad aprire **`/mcps`** nella TUI di OpenCode, selezionare **`atlassian`** e completare l'accesso nel browser *(non lanciare mai `opencode mcp auth` dal tool `shell` in background)*.
+     - **Nota per chi usa OpenCode in Container Docker (`opencode-as-a-container`):** poiché il browser gira sul Mac mentre OpenCode gira nel container, al termine del consenso Atlassian il browser tenterà di aprire `http://127.0.0.1:<porta>/callback?code=...&state=...` mostrando *"Impossibile raggiungere il sito"*. È normale: OpenCode V2 supporta il **copia-incolla dell'URL di callback**! Basta copiare l'intero URL `http://127.0.0.1:...` dalla barra degli indirizzi del browser e incollarlo nel prompt di `/mcps` in OpenCode per completare subito l'autenticazione OAuth.
+   - **Modalità B — Personal API Token / Basic Auth (Alternativa senza redirect OAuth):**
+     - Se l'organizzazione Atlassian ha abilitato i token API per MCP ([guida ufficiale](https://support.atlassian.com/atlassian-ai-gateway/docs/configure-authentication-via-api-token/)), guida l'utente a generare un token su `https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&expiryDays=max&appId=mcp-v2&selectedScopes=all`, calcolare il Base64 di `email:api_token`, salvarlo in `ATLASSIAN_MCP_BASIC_AUTH` nel file `.env` e impostare `"oauth": false` e `"headers": { "Authorization": "Basic {env:ATLASSIAN_MCP_BASIC_AUTH}" }` nella configurazione del server `atlassian`.

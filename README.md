@@ -137,6 +137,7 @@ Oppure dichiararlo direttamente in `opencode.jsonc` sotto `mcp.servers`:
 ### 2. Autenticazione
 - **OAuth 2.1 (Predefinita e Consigliata):**
   Con `"type": "remote"`, OpenCode utilizza automaticamente OAuth 2.1 con PKCE. Apri OpenCode, digita **`/mcps`**, seleziona **`atlassian`** e completa il consenso nel browser.
+  - **Tip per chi usa OpenCode in Container Docker (`opencode-as-a-container`):** al termine del consenso nel browser sul Mac, la pagina viene reindirizzata a `http://127.0.0.1:<porta>/callback?code=...&state=...` (mostrando *"Impossibile raggiungere il sito"* perché la porta è dentro il container). Ti basta **copiare l'intero URL `http://127.0.0.1:...` dalla barra degli indirizzi del browser** e **incollarlo nel prompt `/mcps` di OpenCode** per completare subito il login OAuth!
 - **API Token (Alternativa per Container Docker / Ambienti Headless):**
   Se il redirect OAuth non è raggiungibile dall'ambiente di esecuzione e la tua organizzazione ha abilitato i token API per Atlassian MCP ([guida ufficiale API Token](https://support.atlassian.com/atlassian-ai-gateway/docs/configure-authentication-via-api-token/)):
   1. Crea un Personal API Token su `https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&expiryDays=max&appId=mcp-v2&selectedScopes=all`
@@ -181,7 +182,7 @@ Ogni categoria sotto `.agents/skills/<categoria>/` possiede il proprio file `ind
       }
     }
   },
-  "command": {
+  "commands": {
     "setup-env": {
       "description": "Configura e testa il file .env del workspace (Slack, Gmail, Fellow) e il server MCP Atlassian",
       "template": "Carica e segui la skill setup-workspace-env per creare, configurare e testare passo-passo il file .env con le credenziali e il server MCP Atlassian."
@@ -189,7 +190,7 @@ Ogni categoria sotto `.agents/skills/<categoria>/` possiede il proprio file `ind
   }
 }
 ```
-*(Nota: se stai modificando il file globale generato da `opencode-as-a-container` in `~/.local/share/opencode-container/opencode-data/.config/opencode/opencode.jsonc`, aggiungi i blocchi `"skills"`, `"instructions"` e `"command"` mantenendo intatta la sezione `"provider"` esistente — oppure esegui direttamente `opencode --container-skills` dal Terminale del Mac).*
+*(Nota: se stai modificando il file globale generato da `opencode-as-a-container` in `~/.local/share/opencode-container/opencode-data/.config/opencode/opencode.jsonc`, aggiungi i blocchi `"skills"`, `"instructions"`, `"mcp"` e `"commands"` mantenendo intatta la sezione `"provider"` esistente — oppure esegui direttamente `opencode --container-skills` dal Terminale del Mac).*
 
 #### Come funziona dietro le quinte:
 1. All'avvio, OpenCode legge l'`index.json` di ciascuna categoria configurata.
