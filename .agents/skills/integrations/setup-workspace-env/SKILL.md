@@ -310,8 +310,70 @@ Spiega all'utente che il server MCP remoto ufficiale di Atlassian v2 ([guida uff
      }
      ```
 2. **Autenticazione:**
-   - **Modalità A — OAuth 2.1 interattivo (Consigliata):**
+   - **Modalità A1 — OAuth 2.1 interattivo via `/mcps` (Standard):**
      - Invita l'utente ad aprire **`/mcps`** nella TUI di OpenCode, selezionare **`atlassian`** e completare l'accesso nel browser *(non lanciare mai `opencode mcp auth` dal tool `shell` in background)*.
-     - **Nota per chi usa OpenCode in Container Docker (`opencode-as-a-container`):** poiché il browser gira sul Mac mentre OpenCode gira nel container, al termine del consenso Atlassian il browser tenterà di aprire `http://127.0.0.1:<porta>/callback?code=...&state=...` mostrando *"Impossibile raggiungere il sito"*. È normale: OpenCode V2 supporta il **copia-incolla dell'URL di callback**! Basta copiare l'intero URL `http://127.0.0.1:...` dalla barra degli indirizzi del browser e incollarlo nel prompt di `/mcps` in OpenCode per completare subito l'autenticazione OAuth.
-   - **Modalità B — Personal API Token / Basic Auth (Alternativa senza redirect OAuth):**
+     - **Nota per chi usa OpenCode in Container Docker (`opencode-as-a-container`):** poiché il browser gira sul Mac mentre OpenCode gira nel container, al termine del consenso Atlassian il browser tenterà di aprire `http://127.0.0.1:<porta>/callback?code=...&state=...` mostrando *"Impossibile raggiungere il sito"*. È normale: l'utente può **copiare l'intero URL `http://127.0.0.1:...` dalla barra degli indirizzi del browser** e incollarlo nel prompt di `/mcps` (oppure direttamente in chat all'agente).
+   - **Modalità A2 — OAuth 2.1 assistito dall'agente tramite file (`scratchpad.txt`), ideale se l'utente non riesce a copiare o aprire il link dalla finestra modale `/mcps` (es. in container Docker o dentro Obsidian):**
+     1. **Genera il link OAuth sul server OpenCode attivo e salvalo in `scratchpad.txt`** eseguendo questo script Python:
+        ```python
+        import os, json, subprocess, urllib.parse
+
+        # 1. Individua porta TCP di ascolto e password del server OpenCode nel container
+        port = None
+        with open("/proc/net/tcp") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) > 3 and parts[3] == "0A":
+                    p = int(parts[1].split(":")[1], 16)
+                    if p != 0:
+                        port = p
+                        break
+
+        pw = ""
+        for pid in os.listdir("/proc"):
+            if pid.isdigit():
+                try:
+                    with open(f"/proc/{pid}/environ", "rb") as ef:
+                        for item in ef.read().split(b"\x00"):
+                            s = item.decode("utf-8", errors="replace")
+                            if s.startswith("OPENCODE_PASSWORD="):
+                                pw = s.split("=", 1)[1]
+                                break
+                except Exception:
+                    pass
+            if pw:
+                break
+
+        env = os.environ.copy()
+        if pw:
+            env["OPENCODE_PASSWORD"] = pw
+
+        srv = f"http://127.0.0.1:{port}"
+        q = urllib.parse.urlencode({"directory": os.getcwd()})
+        mcp_res = json.loads(subprocess.check_output(["opencode", "--server", srv, "api", "get", f"/api/mcp?{q}"], env=env, text=True))
+        int_id = next(x["integrationID"] for x in mcp_res["data"] if x["name"] == "atlassian")
+
+        oauth_res = json.loads(subprocess.check_output([
+            "opencode", "--server", srv, "api", "post", f"/api/integration/{int_id}/connect/oauth?{q}",
+            "-H", "Content-Type:application/json", "-d", json.dumps({"methodID": int_id})
+        ], env=env, text=True))
+
+        auth_url = oauth_res["data"]["url"]
+        with open("scratchpad.txt", "w") as out:
+            out.write(auth_url + "\n")
+        print("Link OAuth salvato in scratchpad.txt | Redirect URI:", urllib.parse.parse_qs(urllib.parse.urlparse(auth_url).query).get("redirect_uri"))
+        ```
+     2. Chiedi all'utente di **aprire il link salvato in `scratchpad.txt`** nel browser del suo Mac (o lanciare sul Mac `open "$(cat scratchpad.txt)"`), autorizzare Atlassian e **incollare qui in chat l'URL `http://127.0.0.1:<porta>/callback?state=...&code=...`** su cui atterra il browser (anche se il browser mostra *"Impossibile raggiungere il sito"*).
+     3. Appena l'utente incolla in chat l'URL `http://127.0.0.1:<porta>/callback?...`, **completa tu il callback dentro il container** e pulisci `scratchpad.txt`:
+        ```python
+        import os, urllib.request
+
+        callback_url = "INCOLLA_QUI_URL_CALLBACK_DALL_UTENTE"
+        with urllib.request.urlopen(callback_url, timeout=15) as resp:
+            print("Callback HTTP status:", resp.status)
+        if os.path.exists("scratchpad.txt"):
+            os.remove("scratchpad.txt")
+        ```
+     4. Verifica subito che Atlassian MCP sia connesso chiamando `tools.atlassian.getAccessibleAtlassianResources()` tramite `execute`.
+   - **Modalità B — Personal API Token / Basic Auth (Alternativa senza OAuth):**
      - Se l'organizzazione Atlassian ha abilitato i token API per MCP ([guida ufficiale](https://support.atlassian.com/atlassian-ai-gateway/docs/configure-authentication-via-api-token/)), guida l'utente a generare un token su `https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&expiryDays=max&appId=mcp-v2&selectedScopes=all`, calcolare il Base64 di `email:api_token`, salvarlo in `ATLASSIAN_MCP_BASIC_AUTH` nel file `.env` e impostare `"oauth": false` e `"headers": { "Authorization": "Basic {env:ATLASSIAN_MCP_BASIC_AUTH}" }` nella configurazione del server `atlassian`.

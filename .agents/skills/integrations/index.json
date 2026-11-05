@@ -2,7 +2,7 @@
   "skills": [
     {
       "name": "setup-workspace-env",
-      "version": "4",
+      "version": "5",
       "files": ["SKILL.md"]
     },
     {
@@ -22,7 +22,7 @@
     },
     {
       "name": "atlassian-mcp",
-      "version": "1",
+      "version": "2",
       "files": ["SKILL.md"]
     }
   ]

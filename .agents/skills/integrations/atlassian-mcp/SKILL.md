@@ -51,11 +51,15 @@ In OpenCode V2 i server MCP si configurano sotto `mcp.servers` (nel file di prog
 
 ### Opzione A: OAuth 2.1 (Predefinita e Consigliata)
 OpenCode abilita automaticamente **OAuth 2.1 con PKCE** per i server `"type": "remote"`.
-1. Una volta configurato il server `atlassian`, se `opencode mcp list` riporta `needs authentication`, chiedi all'utente di eseguire **`/mcps`** nell'interfaccia di OpenCode, selezionare **`atlassian`** e completare il login e il consenso nel browser.
+1. **Da interfaccia `/mcps`:** una volta configurato il server `atlassian`, se `opencode mcp list` riporta `needs authentication`, chiedi all'utente di eseguire **`/mcps`** nell'interfaccia di OpenCode, selezionare **`atlassian`** e completare il login e il consenso nel browser.
 2. **Come completare OAuth 2.1 dentro il Container Docker (`opencode-as-a-container`):**
    - Quando OpenCode gira in un container isolato, il browser sul Mac dell'utente al termine del consenso Atlassian viene reindirizzato a un URL locale del tipo `http://127.0.0.1:<porta>/callback?code=...&state=...` e mostra *"Impossibile raggiungere il sito"*.
-   - **Soluzione immediata:** OpenCode V2 supporta l'inserimento manuale dell'URL di callback! Chiedi all'utente di **copiare l'intero URL `http://127.0.0.1:...` dalla barra degli indirizzi del browser** e **incollarlo direttamente nella finestra `/mcps` di OpenCode** per completare l'autenticazione OAuth senza bisogno di esporre porte dal container.
-3. **Importante per l'agente:** non eseguire mai `opencode mcp auth atlassian` tramite il tool `shell` in background, poiché avvia un flusso interattivo il cui link di autorizzazione resterebbe nascosto; invita sempre l'utente a usare `/mcps` nella TUI.
+   - **Caso 1 (copia-incolla in `/mcps`):** l'utente può copiare l'intero URL `http://127.0.0.1:...` dalla barra degli indirizzi del browser e incollarlo direttamente nella finestra `/mcps` di OpenCode.
+   - **Caso 2 (se l'utente non riesce a copiare o aprire il link di autorizzazione dalla finestra modale `/mcps` nel Terminale o in Obsidian — Flusso Assistito dall'Agente via `scratchpad.txt`):**
+     1. L'agente interroga l'API locale del server OpenCode attivo nel container (`/api/integration/<integrationID>/connect/oauth`) e **salva l'URL di autorizzazione OAuth dentro `scratchpad.txt`** nella cartella di lavoro (già ignorato da Git), come documentato nel *Passo 4/4* della skill `setup-workspace-env`.
+     2. L'utente apre il link da `scratchpad.txt` nel browser sul Mac, autorizza Atlassian e **incolla in chat all'agente l'URL di callback `http://127.0.0.1:<porta>/callback?state=...&code=...`**.
+     3. L'agente effettua una richiesta `GET` a quell'URL `http://127.0.0.1:<porta>/callback?...` direttamente dall'interno del container (dove la porta di callback è in ascolto), completando istantaneamente lo scambio del token OAuth, ed elimina `scratchpad.txt`.
+3. **Importante per l'agente:** non eseguire mai `opencode mcp auth atlassian` tramite il tool `shell` in background, poiché avvia un processo CLI separato il cui listener di callback si chiuderebbe al termine del comando; usa sempre `/mcps` oppure l'endpoint `/api/integration/<integrationID>/connect/oauth` del server principale attivo.
 4. Le credenziali OAuth sono salvate da OpenCode esternamente ai file di configurazione del progetto e rispettano i permessi utente e il `cloudId` autorizzato.
 
 ### Opzione B: Autenticazione tramite API Token (Alternativa per Container Docker / Ambienti Headless)
